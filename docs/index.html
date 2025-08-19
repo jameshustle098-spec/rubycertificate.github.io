@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1527, initial-scale=1.0">
+  <title>DXN Star Ruby Certificate Generator</title>
+  <style>
+    body {
+      font-family: 'Arial',sans-serif;
+      background: #e9ecef;
+      min-height:100vh; 
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin:0;
+    }
+    .container {
+      width: 460px; 
+      background: white; 
+      border-radius: 14px;
+      padding:32px 28px;
+      box-shadow:0 6px 32px rgba(0,0,0,0.09);
+      margin:32px 0;
+    }
+    h2 {margin-bottom:10px;color:#004d99;}
+    form label {
+      font-weight:bold;
+      margin-bottom:5px;
+      display:block;
+      color:#124876;
+    }
+    input,select {
+      margin-bottom:18px;
+      width:100%;
+      padding: 10px 12px;
+      border: 1.6px solid #ccd6e1;
+      border-radius:6px;
+      font-size:16px;
+    }
+    .row {display:flex;gap:12px;}
+    button {
+      background:#004d99;
+      color:white;
+      width:100%;
+      border:none;
+      padding:14px 0;font-size:18px;font-weight:bold;letter-spacing:.03em;
+      border-radius:7px;
+      cursor:pointer;
+      margin-top:10px;
+      transition:background 0.2s;
+    }
+    button:hover {background:#12397a;}
+    .status {
+      margin: 18px 0 0;
+      padding:10px;
+      font-size:15px;
+      border-radius: 7px;
+      text-align:center;
+      display: none;
+    }
+    .loading {background:#e3f2fd;color:#004d99;}
+    .success {background:#e8f5e9;color:#2e7d32;}
+    .error {background:#ffebee;color:#b22222;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Generate Star Ruby Certificate</h2>
+    <form id="certForm" autocomplete="off">
+      <label for="name">Distributor Name</label>
+      <input required id="name" type="text" placeholder="Full Name">
+      <label for="number">Distributor Number</label>
+      <input required id="number" type="text" placeholder="ID Number (e.g. 991958412)">
+      <div class="row">
+        <div style="flex:1">
+          <label for="month">Month</label>
+          <select id="month" required>
+            <option value="">Select</option>
+            <option>January</option>
+            <option>February</option>
+            <option>March</option>
+            <option>April</option>
+            <option>May</option>
+            <option>June</option>
+            <option>July</option>
+            <option>August</option>
+            <option>September</option>
+            <option>October</option>
+            <option>November</option>
+            <option>December</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label for="year">Year</label>
+          <select id="year" required>
+            <option value="">Year</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit">Generate Certificate</button>
+      <div id="status" class="status"></div>
+    </form>
+  </div>
+  <script>
+    // Canvas config
+    const TEMPLATE_URL = "assets/new-template.png";
+    const CANVAS_WIDTH = 1527, CANVAS_HEIGHT = 1080;
+
+    // Font settings (keeping as they are - correct size and color)
+    const NAME_FONT = "italic bold 44px 'Times New Roman', serif";
+    const DATE_FONT = "italic bold 45px 'Times New Roman', serif";
+    const FONT_COLOR = "#004d99";
+
+    // Positions - CORRECTED date X position to match reference
+    const NAME_X = 764, NAME_Y = 437;
+    const DATE_X = 685, DATE_Y = 635;  // MOVED LEFT from 730 to 668 to align with "during"
+
+    // Initialize year picker
+    (function(){
+      let ysel=document.getElementById('year');
+      const last=new Date().getFullYear();
+      for(let y=last;y>=2020;y--) {
+        let o=document.createElement('option');
+        o.value=o.textContent=y;
+        ysel.appendChild(o);
+      }
+    })();
+
+    // Form logic
+    document.getElementById('certForm').addEventListener('submit', async function(e){
+      e.preventDefault();
+      const show = (msg, cls) => {
+        let div = document.getElementById('status');
+        div.textContent=msg; div.className="status "+cls; div.style.display='block';
+      }
+      const name = document.getElementById('name').value.trim();
+      const number = document.getElementById('number').value.trim();
+      const month = document.getElementById('month').value;
+      const year = document.getElementById('year').value;
+      if(!name || !number || !month || !year) {
+        show("Please fill all fields.","error"); return;
+      }
+      show("Loading template...","loading");
+      
+      // Load template
+      let img=new Image();
+      img.src=TEMPLATE_URL;
+      await new Promise((res,rej)=>{img.onload=res; img.onerror=rej;});
+      show("Drawing certificate...","loading");
+      
+      // Draw and render
+      let canvas=document.createElement('canvas');
+      canvas.width=CANVAS_WIDTH; canvas.height=CANVAS_HEIGHT;
+      let ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+
+      // Name line
+      ctx.font=NAME_FONT;
+      ctx.fillStyle=FONT_COLOR;
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText(`${name.toUpperCase()} (${number})`, NAME_X, NAME_Y);
+
+      // Month/year - CORRECTED position to align with reference
+      ctx.font=DATE_FONT;
+      ctx.textAlign="left";
+      ctx.fillText(`${month}, ${year}`, DATE_X, DATE_Y);
+
+      show("Preparing download...","loading");
+      
+      // Download
+      let link=document.createElement('a');
+      link.download=`DXN_Certificate_${name.replace(/[^a-z0-9]/gi,'_')}_${month}_${year}.png`;
+      link.href=canvas.toDataURL('image/png');
+      link.click();
+      show("✅ Certificate downloaded!","success");
+      setTimeout(()=>{document.getElementById('status').style.display='none';},3500);
+      e.target.reset();
+    });
+  </script>
+</body>
+</html>
